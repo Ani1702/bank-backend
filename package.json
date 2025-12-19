@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "npx prisma generate && npx prisma migrate deploy",
+    "build": "npm i && npx prisma generate && npx prisma migrate deploy",
     "start": "node server.js"
   },
   "keywords": [],
