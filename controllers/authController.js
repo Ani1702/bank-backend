@@ -6,7 +6,7 @@ const SALT_ROUNDS = 10;
 
 exports.register = async (req, res) => {
     try {
-        const { mobile, password, fullName } = req.body;
+        const { mobile, password, fullName, email } = req.body;
 
         const existingUser = await prisma.user.findUnique({ where: { mobile } });
         if (existingUser) {
@@ -23,7 +23,7 @@ exports.register = async (req, res) => {
                 mobile,
                 passwordHash,
                 fullName,
-                email: `${mobile}@example.com`,
+                email: req.body.email || `${mobile}@example.com`,
                 accountNo,
                 balance: 1000.00, // Joining Bonus
                 transactions: {
