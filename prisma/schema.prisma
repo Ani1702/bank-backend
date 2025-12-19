@@ -1,0 +1,136 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  mobile          String    @unique
+  passwordHash    String
+  fullName        String?
+  dob             DateTime?
+  panNumber       String?   // Critical for Gold > ₹2L & Banking
+  otpSecret       String?  // Stores the hashed OTP (Never store raw OTP)
+  otpExpiry       DateTime?
+  kycStatus       KYCStatus @default(PENDING)
+  
+  accountNo       String?   @unique
+  balance         Decimal   @default(0.00) @db.Decimal(15, 2)
+
+  goldHoldings    GoldHolding?
+  goldTransactions GoldTransaction[]
+  billPayments    BillPayment[]
+  transactions    Transaction[]
+  sessions        Session[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  refreshToken String @unique
+  device    String?
+  ip        String?
+  createdAt DateTime @default(now())
+}
+
+enum KYCStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model Transaction {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  
+  amount        Decimal   @db.Decimal(15, 2)
+  type          TxType
+  category      String    // e.g., "GOLD_BUY", "BILL_PAY", "DEPOSIT", "JOINING_BONUS"
+  description   String?
+  
+  status        TxStatus  @default(SUCCESS)
+  balanceAfter  Decimal   @db.Decimal(15, 2)
+  
+  createdAt     DateTime  @default(now())
+}
+
+enum TxType {
+  CREDIT
+  DEBIT
+}
+
+model GoldHolding {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  
+  // Gold is usually stored in grams (up to 4 decimal places)
+  totalGrams Float    @default(0.0000) 
+  provider   String   @default("SAFEGOLD") // e.g., SafeGold, MMTC-PAMP
+  
+  updatedAt DateTime @updatedAt
+}
+
+model GoldTransaction {
+  id            String          @id @default(uuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id])
+  
+  type          GoldTxType      // BUY or SELL
+  amountINR     Decimal         @db.Decimal(10, 2)
+  goldWeight    Float           // The grams bought/sold
+  liveRate      Decimal         // The rate/gram at that specific second
+  
+  status        TxStatus        @default(PENDING)
+  providerRefId String?         // ID returned by the Gold Provider API
+  
+  createdAt     DateTime        @default(now())
+}
+
+enum GoldTxType {
+  BUY
+  SELL
+}
+
+model BillPayment {
+  id             String      @id @default(uuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id])
+  
+  category       String      // e.g., "ELECTRICITY", "BROADBAND_POSTPAID"
+  billerId       String      // Unique ID from BBPS for the provider (e.g., BESCOM)
+  billerName     String      // e.g., "Bangalore Electricity Supply"
+  
+  consumerNumber String      // The user's account ID with the biller
+  billAmount     Decimal     @db.Decimal(10, 2)
+  billDate       DateTime?
+  dueDate        DateTime?
+  
+  transactionId  String      @unique // Your internal Transaction ID
+  bbpsRefId      String?     // The confirmation ID from BBPS
+  
+  status         TxStatus    @default(PROCESSING)
+  paymentMode    String      // UPI, NETBANKING, WALLET
+  
+  createdAt      DateTime    @default(now())
+}
+
+enum TxStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+}
+
+//One doubt I am actually creating a web app, so auth process should work the same way? or should we only give option of accountid and password for login or even both mobile otp I mean whatver is best.

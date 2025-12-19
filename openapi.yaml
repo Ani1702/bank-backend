@@ -1,0 +1,622 @@
+openapi: 3.0.3
+info:
+  title: Banking Backend API
+  version: 1.0.0
+  description: OpenAPI schema for the finhack bank-backend.
+servers:
+  - url: http://localhost:8080
+    description: Local dev server
+  - url: /
+    description: Relative server
+tags:
+  - name: Auth
+  - name: User
+  - name: Bills
+  - name: Gold
+paths:
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mobile, password, fullName]
+              properties:
+                mobile:
+                  type: string
+                  example: "9999999999"
+                password:
+                  type: string
+                  format: password
+                fullName:
+                  type: string
+                  example: "Jane Doe"
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId:
+                    type: integer
+                  message:
+                    type: string
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/v1/auth/login/initiate:
+    post:
+      tags: [Auth]
+      summary: Initiate login and send OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mobile, password]
+              properties:
+                mobile:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: OTP sent and temp token issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: OTP Sent
+                  tempToken:
+                    type: string
+                  devOtp:
+                    type: string
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/v1/auth/login/verify:
+    post:
+      tags: [Auth]
+      summary: Verify OTP and issue tokens
+      security:
+        - tempBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otp]
+              properties:
+                otp:
+                  type: string
+                  example: "123456"
+      responses:
+        '200':
+          description: Tokens issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: New access token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/v1/user/profile:
+    get:
+      tags: [User]
+      summary: Get user profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    put:
+      tags: [User]
+      summary: Update user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName:
+                  type: string
+                dob:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/UserProfile'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/v1/user/kyc:
+    post:
+      tags: [User]
+      summary: Update KYC
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [panNumber]
+              properties:
+                panNumber:
+                  type: string
+                  example: "ABCDE1234F"
+      responses:
+        '200':
+          description: KYC updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  kycStatus:
+                    type: string
+                    example: VERIFIED
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/v1/bills/categories:
+    get:
+      tags: [Bills]
+      summary: List bill categories
+      responses:
+        '200':
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/v1/bills/billers/{category}:
+    get:
+      tags: [Bills]
+      summary: List billers in a category
+      parameters:
+        - name: category
+          in: path
+          required: true
+          schema:
+            type: string
+          example: ELECTRICITY
+      responses:
+        '200':
+          description: Billers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Biller'
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/v1/bills/fetch:
+    post:
+      tags: [Bills]
+      summary: Fetch bill details
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [billerId, consumerNo]
+              properties:
+                billerId:
+                  type: string
+                  example: MAHADISCOM
+                consumerNo:
+                  type: string
+                  example: "1234567890"
+      responses:
+        '200':
+          description: Bill details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillFetchResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/v1/bills/pay:
+    post:
+      tags: [Bills]
+      summary: Pay a bill
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [billerId, amount]
+              properties:
+                billerId:
+                  type: string
+                amount:
+                  type: number
+                refId:
+                  type: string
+                consumerNo:
+                  type: string
+      responses:
+        '200':
+          description: Payment successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  transactionId:
+                    type: string
+                  bbpsRefId:
+                    type: string
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/v1/bills/history:
+    get:
+      tags: [Bills]
+      summary: Get bill payment history
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Payment history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BillPayment'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/v1/gold/rates:
+    get:
+      tags: [Gold]
+      summary: Get current gold rates
+      responses:
+        '200':
+          description: Current rates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoldRates'
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/v1/gold/portfolio:
+    get:
+      tags: [Gold]
+      summary: Get user's gold portfolio
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Portfolio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoldHolding'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/v1/gold/buy/quote:
+    post:
+      tags: [Gold]
+      summary: Get a buy quote and rate lock
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amountINR]
+              properties:
+                amountINR:
+                  type: number
+      responses:
+        '200':
+          description: Quote issued with lockId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoldBuyQuote'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/v1/gold/buy/confirm:
+    post:
+      tags: [Gold]
+      summary: Confirm gold purchase with lockId
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lockId]
+              properties:
+                lockId:
+                  type: string
+                paymentTxId:
+                  type: string
+      responses:
+        '200':
+          description: Purchase confirmed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  grams:
+                    type: number
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/v1/gold/sell:
+    post:
+      tags: [Gold]
+      summary: Sell gold
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [grams]
+              properties:
+                grams:
+                  type: number
+      responses:
+        '200':
+          description: Gold sold
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  amountINR:
+                    type: number
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token from /auth/login/verify
+    tempBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Temp 2FA token from /auth/login/initiate (valid 5 minutes)
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+    ServerError:
+      description: Server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+  schemas:
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        mobile:
+          type: string
+        email:
+          type: string
+        fullName:
+          type: string
+        dob:
+          type: string
+          format: date
+        panNumber:
+          type: string
+        kycStatus:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    Biller:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+    BillFetchResponse:
+      type: object
+      properties:
+        billerId:
+          type: string
+        consumerNo:
+          type: string
+        billAmount:
+          type: number
+        billDate:
+          type: string
+          format: date-time
+        dueDate:
+          type: string
+          format: date-time
+        customerName:
+          type: string
+    BillPayment:
+      type: object
+      properties:
+        userId:
+          type: integer
+        category:
+          type: string
+        billerId:
+          type: string
+        billerName:
+          type: string
+        consumerNumber:
+          type: string
+        billAmount:
+          type: number
+        transactionId:
+          type: string
+        bbpsRefId:
+          type: string
+        status:
+          type: string
+        paymentMode:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    GoldRates:
+      type: object
+      properties:
+        buyPrice:
+          type: number
+        sellPrice:
+          type: number
+        gst:
+          type: number
+    GoldHolding:
+      type: object
+      properties:
+        totalGrams:
+          type: number
+        valuation:
+          type: number
+    GoldBuyQuote:
+      type: object
+      properties:
+        lockId:
+          type: string
+        grams:
+          type: number
+        amountINR:
+          type: number
+        validFor:
+          type: string
+security:
+  - {}
