@@ -8,5 +8,7 @@ router.put('/profile', verifyToken, userController.updateProfile);
 router.post('/kyc', verifyToken, userController.updateKYC);
 router.get('/transactions', verifyToken, userController.getTransactions);
 router.post('/deposit', verifyToken, userController.deposit);
+router.post('/initiate-verification', verifyToken, userController.initiateContactVerification);
+router.post('/verify-contact', verifyToken, userController.verifyContact);
 
 module.exports = router;

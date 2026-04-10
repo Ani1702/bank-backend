@@ -20,6 +20,11 @@ model User {
   otpExpiry       DateTime?
   kycStatus       KYCStatus @default(PENDING)
   
+  emailVerified   Boolean   @default(false)
+  mobileVerified  Boolean   @default(false)
+  tempEmail       String?   // For storing new email during update
+  tempMobile      String?   // For storing new mobile during update
+  
   accountNo       String?   @unique
   balance         Decimal   @default(0.00) @db.Decimal(15, 2)
 

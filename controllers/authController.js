@@ -48,9 +48,16 @@ exports.register = async (req, res) => {
 
 exports.loginInitiate = async (req, res) => {
     try {
-        const { mobile, password } = req.body;
+        const { mobile, email, password } = req.body;
 
-        const user = await prisma.user.findUnique({ where: { mobile } });
+        if (!mobile && !email) {
+            return res.status(400).json({ message: 'Mobile or email is required' });
+        }
+
+        const user = await prisma.user.findUnique({ 
+            where: mobile ? { mobile } : { email } 
+        });
+
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
